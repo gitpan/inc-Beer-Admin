@@ -1,8 +1,11 @@
+# $File: //member/autrijus/inc-Beer-Admin/lib/inc/Beer/Admin.pm $ $Author: autrijus $
+# $Revision: #2 $ $Change: 4469 $ $DateTime: 2003/02/28 08:42:35 $
+
 package inc::Beer::Admin;
-use vars qw/$VERSION $PACKAGE $FILE $BOOTED/;
+use vars qw($VERSION $PACKAGE $FILE);
 
 BEGIN {
-    $VERSION = '0.01';
+    $VERSION = '0.02';
     $PACKAGE = __PACKAGE__;
     $FILE = "$PACKAGE.pm";
     $FILE =~ s!::!/!g;
@@ -66,33 +69,37 @@ sub load_self {
 # This is the actual code, stored into a string.
 #==============================================================================
 BEGIN {
-    $self = join('', <<"# FNORD #", <<'END_MAKEMAKER');
+    $self = (<<"# FNORD #" . <<'END_MAKEMAKER');
+# Customized version of $PACKAGE $VERSION - for build-time use only
+# DO NOT install this file!
 package $PACKAGE;
-\$CUSTOM_VERSION = '$VERSION';
 use strict;
+use vars '\$CUSTOM_VERSION';
+\$CUSTOM_VERSION = '$VERSION';
+
 my \$PACKAGE = __PACKAGE__;
 my \$FILE = "\$PACKAGE.pm"; \$FILE =~ s!::!/!g;
-if (-M "./$FILE" != -M __FILE__ or -s "./$FILE" != -s __FILE__) {
+die "Please run $0 from the same directory as itself" unless -f "./$FILE";
+
+if (-M "./$FILE" != -M __FILE__ or
+    -s "./$FILE" != -s __FILE__)
+{
     # anti shoot-self-in-foot device
-    delete \$INC{"$FILE"}; require "./$FILE";
     purge_self();
+    local \$^W;
+    delete \$INC{"$FILE"}; require "./$FILE";
 }
 else {
 # FNORD #
 use vars qw(@EXPORT @EXPORT_OK %ARGS @MANIFEST @CLEAN @ISA);
-@EXPORT = qw(WriteMakefile include);
+@EXPORT = qw(WriteMakefile include prompt);
 @EXPORT_OK = qw(script prereq bundle inline can_run get_file check_nmake);
-
 @ISA = 'Exporter';
+
 require Exporter;
 require ExtUtils::MakeMaker;
 require File::Spec;
 require Cwd;
-
-# These should always be exported:
-*main::WriteMakefile = \&WriteMakefile;
-*main::prompt = \&ExtUtils::MakeMaker::prompt;
-*main::include = \&include;
 
 die "Please upgrade File::Spec. Version is too old to continue.\n"
   if $File::Spec::VERSION < 0.8;
@@ -101,9 +108,14 @@ die "$PACKAGE should only be used inside Makefile.PL\n"
 
 }
 
+sub prompt { goto &ExtUtils::MakeMaker::prompt }
+
 sub purge_self {
     my $file = __FILE__;
-    unlink $file or return;
+    unless (unlink $file) {
+	warn "Cannot remove $file:\n$!";
+	return;
+    }
     my @parts = split('/', $FILE);
 
     foreach my $i (reverse(0 .. $#parts - 1)) {
@@ -139,7 +151,28 @@ sub WriteMakefile {
 
     my %Args = (%ARGS, %args);
     ExtUtils::MakeMaker::WriteMakefile(%Args);
+    update_manifest();
     fix_up_makefile();
+}
+
+sub determine_NAME {
+    my $NAME = '';
+    my @modules = (glob('*.pm'), grep {/\.pm$/} find_files('lib'));
+    if (@modules == 1) {
+        open MODULE, $modules[0] or die $!;
+        while (<MODULE>) {
+            next if /^\s*(?:#|$)/;
+            if (/^\s*package\s+(\w[\w:]*)\s*;\s*$/) {
+                $NAME = $1;
+            }
+            last;
+        }
+    }
+    die <<END unless length($NAME);
+Can't determine a NAME for this distribution.
+Please pass a NAME parameter to the WriteMakefile function in Makefile.PL.
+END
+    return $NAME;
 }
 
 sub determine_VERSION {
@@ -157,27 +190,6 @@ Please pass a VERSION parameter to the WriteMakefile function in Makefile.PL.
 END
 #'
     $ARGS{VERSION} = $VERSION;
-}
-
-sub determine_NAME {
-    my $NAME = '';
-    my @modules = (glob('*.pm'), grep {/\.pm$/} find_files('lib'));
-    if (@modules == 1) {
-        open MODULE, $modules[0] or die $!;
-        while (<MODULE>) {
-            next if /^\s*#/;
-	    print "looing at $_";
-            if (/^\s*package\s+(\w[\w:]*)\s*;\s*$/) {
-                $NAME = $1;
-            }
-            last;
-        }
-    }
-    die <<END unless length($NAME);
-Can't determine a NAME for this distribution.
-Please pass a NAME parameter to the WriteMakefile function in Makefile.PL.
-END
-    return $NAME;
 }
 
 sub find_files {
@@ -222,7 +234,7 @@ sub fix_up_makefile {
       or die "${PACKAGE}::WriteMakefile can't append to Makefile:\n$!";
 
     print MAKEFILE <<MAKEFILE;
-# Well, not quite. $PACKAGE is adding this:
+# Added by $PACKAGE $CUSTOM_VERSION:
 
 realclean purge ::
 	\$(RM_F) \$(DISTVNAME).tar\$(SUFFIX)
@@ -243,6 +255,71 @@ distsign::
 MAKEFILE
 
     close MAKEFILE;
+}
+
+sub update_manifest {
+    my ($manifest, $manifest_path, $relative_path) = read_manifest();
+    my $manifest_changed = 0;
+
+    my %manifest;
+    for (@$manifest) {
+        my $path = $_;
+        chomp $path;
+	$path =~ s/\s.*//;
+        $path =~ s/^\.[\\\/]//;
+        $path =~ s/[\\\/]/\//g;
+        $manifest{$path} = 1;
+    }
+
+    for (find_files( (split('/', $FILE))[0] )) {
+        my $filepath = $_;
+        $filepath = "$relative_path/$filepath"
+          if length($relative_path);
+        unless (defined $manifest{$filepath}) {
+            print "Updating your MANIFEST file:\n"
+              unless $manifest_changed++;
+            print "  Adding '$filepath'\n";
+            push @$manifest, "$filepath\t\tSupport file - Not installed\n";
+            $manifest{$filepath} = 1;
+        }
+    }
+
+    if ($manifest_changed) {
+        open MANIFEST, "> $manifest_path" 
+          or die "Can't open '$manifest_path' for output:\n$!";
+        print MANIFEST for @$manifest;
+        close MANIFEST;
+    }
+}
+
+sub read_manifest {
+    my $manifest = [];
+    my $manifest_path = '';
+    my $relative_path = '';
+    my @relative_dirs = ();
+    my $cwd = cwd();
+    my @cwd_dirs = File::Spec->splitdir($cwd);
+    while (@cwd_dirs) {
+        last unless -f File::Spec->catfile(@cwd_dirs, 'Makefile.PL');
+        my $path = File::Spec->catfile(@cwd_dirs, 'MANIFEST');
+        if (-f $path) {
+            $manifest_path = $path;
+            last;
+        }
+        unshift @relative_dirs, pop(@cwd_dirs);
+    }
+    unless (length($manifest_path)) {
+        die "Can't locate the MANIFEST file for '$cwd'\n";
+    }
+    $relative_path = join '/', @relative_dirs
+      if @relative_dirs;
+
+    open MANIFEST, $manifest_path 
+      or die "Can't open $manifest_path for input:\n$!";
+    @$manifest = <MANIFEST>;
+    close MANIFEST;
+
+    return ($manifest, $manifest_path, $relative_path);
 }
 
 # check if we can run some command
@@ -365,7 +442,7 @@ quit
     system($args{run}) if exists $args{run};
     unlink($file) if $args{remove};
 
-    print (((!exists $args{check_for} or -e $args{check_for})
+    print(((!exists $args{check_for} or -e $args{check_for})
 	? "done!" : "failed! ($!)"), "\n");
     chdir $dir; return !$?;
 }
