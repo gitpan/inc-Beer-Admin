@@ -1,0 +1,130 @@
+# $File: //member/autrijus/inc-Beer-Admin/lib/inc/Beer/Admin.pod $ $Author: autrijus $
+# $Revision: #1 $ $Change: 4467 $ $DateTime: 2003/02/28 06:57:59 $
+
+=head1 NAME
+
+inc::Beer::Admin - Alcoholic Replacement for ExtUtils::MakeMaker
+
+=head1 VERSION
+
+This document describes version 0.01 of inc::Beer::Admin, released
+released February 28, 2003.
+
+=head1 SYNOPSIS
+
+In your Makefile.PL:
+
+    use inc::Beer::Admin;
+    WriteMakefile;
+
+=head1 DESCRIPTION
+
+This module is a drop-in replacement for B<ExtUtils::MakeMaker>,
+and a fork of the wonderfully inspiring B<CPAN::MakeMaker>.
+
+The intention of this module, although only half-serious, is to
+encourage adoption for the catalyst-style, customizable distribution
+allowed by Brian "Ingy" Ingerson's B<CPAN::MakeMaker>.
+
+Before I get around to write some new documentations for this module,
+please just read L<CPAN::MakeMaker> and L<CPAN::MakeMaker-Philosophy>
+for the real documentation. :-)
+
+Based on to version 0.10 of B<CPAN::MakeMaker>, this module adds
+several features:
+
+=over 4
+
+=item Ability to check and download F<nmake.exe> for Win32 users
+
+For Win32 Perl users, the non-redistributable F<nmake.exe> is often 
+needed before installing CPAN modules.  Now simply write this in
+your F<Makefile.PL>:
+
+    use inc::Beer::Admin 'check_nmake';
+    check_nmake();
+    WriteMakefile;
+
+It will then automatically check for a valid F<nmake.exe> before
+writing F<Makefile.PL>, and offers to download it from the vendor
+site and install it.
+
+=item Fetching remote files via FTP
+
+You may also import C<get_file> function to fetch needed files,
+executables, PAR bundles, etc from remote hosts.
+
+=item Integration with B<Module::Signature>
+
+A new make action, B<make distsign>, is added for B<Module::Signature>
+users to sign the distribution before release.
+
+=cut
+
+=head1 FAQ
+
+=head2 Why does this module have an C<inc> prefix?
+
+The original implementation of B<CPAN::MakeMaker> introduces subtle
+problems for distributions ending with C<CPAN> (e.g. B<CPAN.pm>,
+B<WAIT::Format::CPAN>), because its placement of F<./CPAN/> duplicates
+the real libraries that will get installed; also, the directory name
+F<./CPAN/> may confuse users.
+
+On the other hand, storing bundled, for-build-time-only libraries in
+F<./inc/> is a normal practice, and there is little chance that a
+CPAN distribution will be called C<Foo::Bar::inc>, so it's much safer
+to use.
+
+Also, it allows for other helper modules like B<ExtUtils::AutoInstall>
+to reside also in F<./inc/> and make use of them in the future.
+
+=head2 But what about the C<Beer::Admin> part?
+
+On February 28, 2003, following exchange took place on C<#perl>:
+
+    <ingy> autrijus: I might just advise that only CPAN.pm use 0.11,
+           and not actually release the version for the general public
+    <autrijus> ugh. but i want 0.11 to play with :)
+    <Spoon> 0.11 of what?
+    <autrijus> Spoon: of a highly convoluted module that requires
+               Int 17 to understand.
+    <Spoon> it has no name?
+    <autrijus> no one dare speaking of its name.
+    <autrijus> Spoon: but one can hint; it has the nexus of perl
+               community as its first name, and the humble device that
+               installs modules as its last name
+    <EuroXwrn> Beer::Admin
+    <Spoon> oh. that one.
+    <autrijus> EuroXwrn: that's a good one
+    <Spoon> ingy's module that someone called viral
+    <ingy> Spoon: shhhh
+    * autrijus decides to fork CPAN::MakeMaker into Acme::Beer::Admin
+    <ingy> nice
+
+So there.
+
+=head1 AUTHORS
+
+Autrijus Tang E<lt>autrijus@autrijus.orgE<gt>
+
+Based on original works of Brian Ingerson <INGY@cpan.org>
+
+=head1 COPYRIGHT
+
+Copyright 2002, 2003 by Autrijus Tang E<lt>autrijus@autrijus.orgE<gt>.
+Copyright (c) 2002. Brian Ingerson. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+See L<http://www.perl.com/perl/misc/Artistic.html>
+
+=cut
+
+# Local variables:
+# c-indentation-style: bsd
+# c-basic-offset: 4
+# indent-tabs-mode: nil
+# End:
+# vim: expandtab shiftwidth=4:

@@ -1,0 +1,6 @@
+____________________________________________________________________________
+[  4467] By: autrijus                              on 2003/02/28  06:57:59
+        Log: * Version 0.01.
+	   + MANIFEST Makefile.PL README inc/Beer/Admin.pm
+	   + lib/inc/Beer/Admin.pm lib/inc/Beer/Admin.pod t/0-signature.t
+	   + t/1-basic.t

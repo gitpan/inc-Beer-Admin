@@ -1,0 +1,10 @@
+Changes
+MANIFEST			This list of files
+Makefile.PL
+README
+SIGNATURE
+inc/Beer/Admin.pm
+lib/inc/Beer/Admin.pm
+lib/inc/Beer/Admin.pod
+t/0-signature.t
+t/1-basic.t
